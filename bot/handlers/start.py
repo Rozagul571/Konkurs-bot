@@ -1,4 +1,3 @@
-# bot/handlers/start.py
 from aiogram import Router, types
 from aiogram.filters import CommandStart
 from django.utils import timezone

@@ -1,4 +1,3 @@
-# bot/utils/channels.py
 from aiogram import Bot
 from aiogram.methods import GetChatMember
 from aiogram.exceptions import TelegramAPIError

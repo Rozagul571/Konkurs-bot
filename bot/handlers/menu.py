@@ -1,4 +1,3 @@
-# bot/handlers/menu.py
 from aiogram import Router, types, F
 from bot.buttons.reply import main_menu_keyboard
 from asgiref.sync import sync_to_async
