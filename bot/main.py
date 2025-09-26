@@ -1,9 +1,14 @@
 import os
 import asyncio
 
-from bot.handlers.conditions import conditions_router
-
 # Django sozlamalarini yuklash
+import sys
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 import django
 django.setup()
@@ -15,7 +20,11 @@ from config.settings import TELEGRAM_BOT_TOKEN
 
 # Handlersni faqat funksiya ichida import qilish
 async def setup_routers(dp):
-    from bot.handlers import start_router, user_router, referral_router, prizes_router
+    from bot.handlers.start import start_router
+    from bot.handlers.user import user_router
+    from bot.handlers.referral import referral_router
+    from bot.handlers.prizes import prizes_router
+    from bot.handlers.conditions import conditions_router
     dp.include_router(start_router)
     dp.include_router(user_router)
     dp.include_router(referral_router)

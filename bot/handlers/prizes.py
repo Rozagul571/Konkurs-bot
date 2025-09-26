@@ -17,5 +17,6 @@ async def prizes_handler(message: types.Message, competition):
         return
 
     prizes = await sync_to_async(list)(Prize.objects.filter(competition=competition).order_by("place"))
-    prize_text = "Konkurs sovg‘alari:\n\n" + "\n".join([f"{p.place}-o‘rin: {p.prize_amount or 'Sovg‘a'}" for p in prizes])
+    prize_text = (("Konkurs sovg‘alari:\n\n""") + "\n"
+                  .join([f"{p.place}-o‘rin: {p.prize_amount}" for p in prizes]))
     await message.answer(prize_text, reply_markup=main_menu_keyboard())

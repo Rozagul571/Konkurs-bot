@@ -18,8 +18,7 @@ class MembershipCheckHandler(CallbackQueryHandler):
 
         @sync_to_async
         def get_or_create_user():
-            return User.objects.get_or_create(
-                telegram_id=user_tg.id,
+            return User.objects.get_or_create(telegram_id=user_tg.id,
                 defaults={
                     "full_name": (user_tg.first_name or "") + " " + (user_tg.last_name or ""),
                     "username": user_tg.username,
@@ -39,8 +38,7 @@ class MembershipCheckHandler(CallbackQueryHandler):
             return Participant.objects.get_or_create(
                 user=user,
                 competition=competition,
-                defaults={"is_active": False, "total_points": 0}
-            )[0]
+                defaults={"is_active": False, "total_points": 0})[0]
 
         @sync_to_async
         def get_channels(competition):
@@ -65,9 +63,7 @@ class MembershipCheckHandler(CallbackQueryHandler):
 
         user = await get_or_create_user()
         competition = await get_active_competition()
-        if not competition:
-            await callback.answer("Hozirda faol konkurs yo‘q.", show_alert=True)
-            return
+
 
         participant = await get_or_create_participant(user, competition)
         channels = await get_channels(competition)
@@ -79,17 +75,19 @@ class MembershipCheckHandler(CallbackQueryHandler):
         if not is_member:
             await callback.answer(
                 f"Siz quyidagi kanal/guruhlarga a’zo emassiz: {', '.join(not_joined)}",
-                show_alert=True
-            )
+                show_alert=True)
+
             await callback.message.edit_reply_markup(reply_markup=channel_join_keyboard([ch for ch in channels if ch.channel_username in not_joined]))
         else:
+
             participant.is_active = True
             await sync_to_async(participant.save)()
             await award_channel_join_points(participant)
             referral_count = await count_referrals(user)
             referral_rule = await sync_to_async(PointRule.objects.filter)(
-                competition=competition, action_type=PointAction.REFERRAL
-            ).first()
+                competition=competition, action_type=PointAction.REFERRAL).first()
+
+
             if referral_rule:
                 referral_points = referral_count * referral_rule.points * (2 if user.is_premium else 1)
                 if referral_points > 0 and not Point.objects.filter(
@@ -100,7 +98,8 @@ class MembershipCheckHandler(CallbackQueryHandler):
                     await sync_to_async(participant.save)()
 
             await callback.message.answer(
-                f"Tabriklaymiz! Siz barcha kanal/guruhlarga a’zo bo‘ldingiz!\n"
+                f"Tabriklaymiz.  Siz barcha kanal/guruhlarga a’zo bo‘ldingiz!\n"
+                
                 f"Sizning referal linkingiz: {referral_link}\n"
                 f"Jami ballar: {participant.total_points}",
                 reply_markup=main_menu_keyboard(show_participate=False, is_admin=user.role == "admin")

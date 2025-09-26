@@ -19,7 +19,6 @@ class PointAction(models.TextChoices):
     CHANNEL_JOIN = "channel_join", "Join All Channels"
     PREMIUM_REFERRAL = "premium_referral", "Premium Referral"
     TASK_INSTAGRAM = "task_instagram", "Instagram Task"
-    DAILY_BONUS = "daily_bonus", "Daily Bonus"
 
 class UserRole(models.TextChoices):
     ADMIN = "admin", "Admin"
@@ -33,7 +32,7 @@ class User(models.Model):
     is_premium = models.BooleanField(default=False)
     role = models.CharField(max_length=20, choices=UserRole.choices, default=UserRole.PARTICIPANT)
     joined_at = models.DateTimeField(default=timezone.now)
-    referral_code = models.CharField(max_length=50, unique=True, null=True, blank=True)  # default olib tashlandi
+    referral_code = models.CharField(max_length=50, unique=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if not self.referral_code:
@@ -43,6 +42,37 @@ class User(models.Model):
     def __str__(self):
         return self.username or str(self.telegram_id)
 
+
+class Participant(models.Model):
+    total_points = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=False)
+
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    competition = models.ForeignKey('Competition', on_delete=models.CASCADE)
+
+    def update_points(self, action_type, rule):
+        if action_type == PointAction.REFERRAL:
+            referral = Referral.objects.filter(referrer=self.user, competition=self.competition).first()
+            if referral and referral.referred.is_premium:
+                points = rule.points * rule.prem_ball
+            else:
+                points = rule.points
+        elif action_type == PointAction.CHANNEL_JOIN:
+            points = rule.points * (rule.prem_ball if self.user.is_premium else 1)
+        else:
+            points = rule.points
+
+        self.total_points += points
+        self.save()
+        Point.objects.create(participant=self, points=points, reason=action_type)
+
+    class Meta:
+        unique_together = ('user', 'competition')
+
+    def __str__(self):
+        return f"{self.user} in {self.competition}"
+
+
 class Channel(TimestampMixin):
     class ChannelType(models.TextChoices):
         CHANNEL = 'channel', 'Channel'
@@ -51,6 +81,7 @@ class Channel(TimestampMixin):
     channel_username = models.CharField(max_length=200, unique=True)
     title = models.CharField(max_length=200, null=True, blank=True)
     type = models.CharField(max_length=20, choices=ChannelType.choices, default=ChannelType.CHANNEL)
+
     competition = models.ForeignKey('Competition', on_delete=models.CASCADE, related_name='channels')
 
     class Meta:
@@ -63,6 +94,7 @@ class Competition(TimestampMixin):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=CompetitionStatus.choices, default=CompetitionStatus.ACTIVE)
+
     admin = models.ForeignKey(User, on_delete=models.CASCADE, related_name="admin_competitions", null=True)
     # total_points = models.PositiveIntegerField(default=0)
 
@@ -70,12 +102,15 @@ class Competition(TimestampMixin):
         return self.title
 
 class PointRule(models.Model):
-    competition = models.ForeignKey('Competition', on_delete=models.CASCADE)
     action_type = models.CharField(max_length=50, choices=PointAction.choices, default=PointAction.REFERRAL)
     points = models.IntegerField(default=0)
-    multiplier = models.FloatField(default=1.0)
+    prem_ball = models.FloatField(default=1.0, help_text="Premium")
     start_time = models.DateTimeField(null=True, blank=True)
-    end_time = models.DateTimeField(null=True, blank=True)
+
+    competition = models.ForeignKey('Competition', on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('competition', 'action_type')
 
     def __str__(self):
         return f"{self.get_action_type_display()} ({self.points} ball)"
@@ -92,24 +127,15 @@ class Referral(models.Model):
     def __str__(self):
         return f"{self.referred} <- {self.referrer}"
 
-class Participant(TimestampMixin):
-    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='participations')
-    competition = models.ForeignKey('Competition', on_delete=models.CASCADE, related_name='participants')
-    is_active = models.BooleanField(default=False)
-    total_points = models.PositiveIntegerField(default=0)
 
-    class Meta:
-        unique_together = ('user', 'competition')
-
-    def __str__(self):
-        return f"{self.user} in {self.competition}"
 
 class Prize(models.Model):
-    competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name="prizes")
     place = models.PositiveIntegerField()
     prize_name = models.CharField(max_length=200, null=True, blank=True)
     prize_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     description = models.TextField(blank=True, null=True)
+
+    competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name="prizes")
 
     class Meta:
         unique_together = ("competition", "place")
@@ -118,10 +144,11 @@ class Prize(models.Model):
         return f"{self.competition} - {self.place}th Prize ({self.prize_name})"
 
 class Point(models.Model):
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="points")
     points = models.IntegerField()
     reason = models.CharField(max_length=50, choices=PointAction.choices)
     created_at = models.DateTimeField(default=timezone.now)
+
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="points")
 
     def __str__(self):
         return f"{self.participant.user} earned {self.points} for {self.reason}"
