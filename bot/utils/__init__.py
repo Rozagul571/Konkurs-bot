@@ -1,4 +1,3 @@
 
-from .channels import check_channels
+from .check_channels import check_user_channels
 
-__all__ = ["check_channels"]

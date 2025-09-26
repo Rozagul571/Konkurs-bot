@@ -32,7 +32,7 @@ INSTALLED_APPS = [
     # third
 
     # app
-    'chat'
+    'core'
 ]
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TELEGRAM_BOT_TOKEN:
@@ -67,7 +67,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
-AUTH_USER_MODEL = 'chat.User'
+# AUTH_USER_MODEL = 'core.User'
 
 
 # Database
